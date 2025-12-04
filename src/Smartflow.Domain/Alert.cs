@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 
 namespace Smartflow.Domain
 {
-    public class Alert
-    {
-        public void Alert()
-        {
-            Console.WriteLine("Incluir logica de alerta aqui");
-        }
+  public class Alert
+  {
+    //WARNING: member names can be the same as their enclosing   
+    // public void Alert()
+    // {
+    //     Console.WriteLine("Incluir logica de alerta aqui");
+    // }
 
-    }
+  }
 }
