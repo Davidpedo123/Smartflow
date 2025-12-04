@@ -1,5 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\Smartflow.Domain\Smartflow.Domain.csproj" />
+    <ProjectReference Include="..\Smartflow.DataAccess\Smartflow.DataAccess.csproj" />
+    <ProjectReference Include="..\Smartflow.Infrastructure\Smartflow.Infrastructure.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

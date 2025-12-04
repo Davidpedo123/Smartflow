@@ -18,4 +18,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Smartflow.Domain\Smartflow.Domain.csproj" />
+    <ProjectReference Include="..\Smartflow.Business\Smartflow.Business.csproj" />
+    <ProjectReference Include="..\Smartflow.DataAccess\Smartflow.DataAccess.csproj" />
+    <ProjectReference Include="..\Smartflow.Infrastructure\Smartflow.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
