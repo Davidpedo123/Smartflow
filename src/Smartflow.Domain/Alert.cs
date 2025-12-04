@@ -8,7 +8,10 @@ namespace Smartflow.Domain
 {
     public class Alert
     {
-        
+        public void Alert()
+        {
+            Console.WriteLine("Incluir logica de alerta aqui");
+        }
 
     }
 }
