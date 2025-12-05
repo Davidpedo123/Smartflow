@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,16 +17,19 @@ namespace Smartflow.Domain.Models
     public string OutputPath { get; set; }
     public ParallelizationStrategy Strategy { get; set; }
 
-    public void Load(string path)
+    public static Configuration Load(string path)
     {
       if (!File.Exists(path))
         throw new FileNotFoundException($"No se encontró el archivo de configuración: {path}");
 
       var json = File.ReadAllText(path);
-      var loaded = JsonSerializer.Deserialize<Configuration>(json);
+      return JsonSerializer.Deserialize<Configuration>(json) ?? throw new Exception("Error al cargar archivo de configuracion.");
 
-      if (loaded == null)
-        throw new Exception("Error al cargar el archivo de configuración.");
+      // if (loaded == null)
+      //   throw new Exception("Error al cargar el archivo de configuración.");
+      //
+      // Console.WriteLine(loaded.BlockSize);
+      //
 
       // MaxThreads = loaded.MaxThreads;
       // BlockSize = loaded.BlockSize;
@@ -43,6 +45,7 @@ namespace Smartflow.Domain.Models
       if (BlockSize <= 0) return false;
       if (string.IsNullOrWhiteSpace(InputPath)) return false;
       if (string.IsNullOrWhiteSpace(OutputPath)) return false;
+      if (!Enum.IsDefined<ParallelizationStrategy>(Strategy)) return false;
 
       return true;
     }
