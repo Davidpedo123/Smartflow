@@ -13,8 +13,8 @@ namespace Smartflow.Domain.Models
   {
     public int MaxThreads { get; set; }
     public int BlockSize { get; set; }
-    public string InputPath { get; set; }
-    public string OutputPath { get; set; }
+    public string InputPath { get; set; } = string.Empty;
+    public string OutputPath { get; set; } = string.Empty;
     public ParallelizationStrategy Strategy { get; set; }
 
     public static Configuration Load(string path)

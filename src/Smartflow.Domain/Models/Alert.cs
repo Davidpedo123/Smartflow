@@ -5,11 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using Smartflow.Domain.Enums;
 
-namespace Smartflow.Domain
+namespace Smartflow.Domain.Models
 {
   public class Alert
   {
-    public string Type { get; set; }
+    public AlertSeverity Type { get; set; } = AlertSeverity.INFO;
     public AlertSeverity Severity { get; set; }
     public double Value { get; set; }
     public double Threshold { get; set; }
