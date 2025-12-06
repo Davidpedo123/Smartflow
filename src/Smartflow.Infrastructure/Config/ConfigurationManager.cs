@@ -15,14 +15,41 @@ namespace Smartflow.Infrastructure.Config
 
     public void Load(string configPath)
     {
+      var dir = Path.GetDirectoryName(configPath);
+
+      if (dir is null or "")
+        dir = Directory.GetCurrentDirectory();
+
+      if (!Directory.Exists(dir))
+        Directory.CreateDirectory(dir);
+
+
+      configPath = Path.Combine(dir, Path.GetFileName(configPath));
+
       if (!File.Exists(configPath))
-        throw new FileNotFoundException($"No se encontro: {configPath}");
+      {
+        var defaultConfig = new Configuration
+        {
+          MaxThreads = 4,
+          BlockSize = 1000,
+          InputPath = ResolveProjectPath("data/input/"),
+          OutputPath = ResolveProjectPath("data/output/"),
+          Strategy = ParallelizationStrategy.DATA_DECOMPOSITION
+        };
+
+        var jsonDefault = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions
+        {
+          WriteIndented = true
+        });
+
+        File.WriteAllText(configPath, jsonDefault);
+        Config = defaultConfig;
+        return;
+      }
 
       var json = File.ReadAllText(configPath);
       var loaded = JsonSerializer.Deserialize<Configuration>(json)
         ?? throw new Exception("Error deserializando configuracion.");
-
-      ApplyDefaults(loaded);
 
       if (!loaded.Validate())
         throw new Exception("Configuracion invalida.");
@@ -47,27 +74,6 @@ namespace Smartflow.Infrastructure.Config
       });
 
       File.WriteAllText(path, json);
-    }
-
-    private static void ApplyDefaults(Configuration cfg)
-    {
-
-      if (cfg.MaxThreads is <= 0 or > 32)
-        cfg.MaxThreads = 4;
-
-      if (cfg.BlockSize <= 0)
-        cfg.BlockSize = 25_000;
-
-      if (string.IsNullOrWhiteSpace(cfg.InputPath))
-        cfg.InputPath = ResolveProjectPath("data/input/");
-
-      if (string.IsNullOrWhiteSpace(cfg.OutputPath))
-        cfg.OutputPath = ResolveProjectPath("data/output/result.json");
-
-      if (!Enum.IsDefined<ParallelizationStrategy>(cfg.Strategy))
-      {
-        cfg.Strategy = ParallelizationStrategy.DATA_DECOMPOSITION;
-      }
     }
 
     private static string ResolveProjectPath(string relativePath)
