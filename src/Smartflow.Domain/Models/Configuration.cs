@@ -17,28 +17,6 @@ namespace Smartflow.Domain.Models
     public string OutputPath { get; set; } = string.Empty;
     public ParallelizationStrategy Strategy { get; set; }
 
-    public static Configuration Load(string path)
-    {
-      if (!File.Exists(path))
-        throw new FileNotFoundException($"No se encontró el archivo de configuración: {path}");
-
-      var json = File.ReadAllText(path);
-      return JsonSerializer.Deserialize<Configuration>(json) ?? throw new Exception("Error al cargar archivo de configuracion.");
-
-      // if (loaded == null)
-      //   throw new Exception("Error al cargar el archivo de configuración.");
-      //
-      // Console.WriteLine(loaded.BlockSize);
-      //
-
-      // MaxThreads = loaded.MaxThreads;
-      // BlockSize = loaded.BlockSize;
-      // InputPath = loaded.InputPath;
-      // OutputPath = loaded.OutputPath;
-      // Strategy = loaded.Strategy;
-
-    }
-
     public bool Validate()
     {
       if (MaxThreads <= 0) return false;
