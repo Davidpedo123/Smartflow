@@ -268,3 +268,90 @@ public class MetricsTests
 
     } 
 }
+
+public class ConfigurationModelTest
+{
+    
+    [Fact]
+
+    
+    public void ValidateFalseTest()
+    {
+        Configuration conf = new Configuration
+        {
+            MaxThreads = -1,
+            BlockSize = -1,
+            InputPath = "",
+            OutputPath = "",
+        
+        };
+
+        bool resul = conf.Validate();
+        Assert.False(resul);
+
+
+    }
+
+    [Fact]
+    public void ValidateTrueTest()
+    {
+        Configuration conf = new Configuration
+        {
+            MaxThreads = 1,
+            BlockSize = 1,
+            InputPath = "/",
+            OutputPath = "/",
+        
+        };
+
+        bool resul = conf.Validate();
+        Assert.True(resul);
+
+
+    }
+
+    [Fact]
+
+    public void ThresholdsFalseValidateTest()
+    {
+        TemperatureThreshold temp = new TemperatureThreshold
+        {
+            Min = 20,
+            Max = 30
+        };
+
+        Thresholds th = new Thresholds
+        {
+            Noise = -1,
+            Traffic = -1,
+            CO2 = -1,
+            Temperature = temp
+        };
+
+        bool result = th.Validate();
+        Assert.False(result);
+
+    }
+
+    [Fact]
+    public void ThresholdsTrueValidateTest()
+    {
+        TemperatureThreshold temp = new TemperatureThreshold
+        {
+            Min = 20,
+            Max = 30
+        };
+
+        Thresholds th = new Thresholds
+        {
+            Noise = 10,
+            Traffic = 10,
+            CO2 = 10,
+            Temperature = temp
+        };
+
+        bool result = th.Validate();
+        Assert.True(result);
+
+    }
+}
