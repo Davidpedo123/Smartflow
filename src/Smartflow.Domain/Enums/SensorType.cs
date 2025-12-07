@@ -3,7 +3,7 @@ namespace Smartflow.Domain.Enums
   public enum SensorType
   {
     NOISE,
-    TEMP,
+    TEMPERATURE,
     HUMIDITY,
     TRAFFIC,
     POLLUTION

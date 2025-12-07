@@ -9,11 +9,12 @@ namespace Smartflow.Domain.Models
 {
   public class Alert
   {
-    public AlertSeverity Type { get; set; } = AlertSeverity.INFO;
-    public AlertSeverity Severity { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public AlertSeverity Severity { get; set; } = AlertSeverity.INFO;
     public double Value { get; set; }
-    public double Threshold { get; set; }
+    public ThresholdInfo Threshold { get; set; } = new();
     public DateTime Timestamp { get; set; }
+
     //WARNING: member names can be the same as their enclosing   
     // public void Alert()
     // {

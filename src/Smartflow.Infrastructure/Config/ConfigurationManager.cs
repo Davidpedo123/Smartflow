@@ -34,7 +34,18 @@ namespace Smartflow.Infrastructure.Config
           BlockSize = 1000,
           InputPath = ResolveProjectPath("data/input/"),
           OutputPath = ResolveProjectPath("data/output/"),
-          Strategy = ParallelizationStrategy.DATA_DECOMPOSITION
+          Strategy = ParallelizationStrategy.DATA_DECOMPOSITION,
+          Thresholds = new Thresholds
+          {
+            Noise = 70,
+            Traffic = 80,
+            CO2 = 400,
+            Temperature = new TemperatureThreshold
+            {
+              Min = 15,
+              Max = 35
+            }
+          }
         };
 
         var jsonDefault = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions
