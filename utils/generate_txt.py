@@ -7,7 +7,7 @@ import datetime
 import os
 
 fake = Faker()
-SENSOR_TYPES = ["NOISE", "TEMP", "HUMIDITY", "POLLUTION", "TRAFFIC"]
+SENSOR_TYPES = ["NOISE", "TEMPERATURE", "HUMIDITY", "POLLUTION", "TRAFFIC"]
 
 def generar_datos_worker(n, queue):
     """Genera n datos y los pone en la cola."""
