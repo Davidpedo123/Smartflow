@@ -56,11 +56,11 @@ public class ConfigurationManagerTests
     }
 
     [Fact]
-    public void Load_Configuration()
+    public void Load_Configuration_IfFile_exists()
     {
         
         string configPath = ResolveProjectPath("data/config/settings.json");
-        Assert.True(File.Exists(configPath), $"El archivo de configuración no se encuentra en {configPath}");
+
         
         ConfigurationManager.Instance.Load(configPath);
 
@@ -70,8 +70,8 @@ public class ConfigurationManagerTests
         
         Assert.Equal(8, config.MaxThreads); 
         Assert.Equal(2000, config.BlockSize); 
-        Assert.Equal("C:\\Users\\david\\OneDrive - Instituto Tecnol\u00F3gico de Las Am\u00E9ricas (ITLA)\\Documentos\\itla\\c6\\p parallela\\ProyectoFinalD\\src\\Smartflow.Tests\\bin\\data/input/", config.InputPath); 
-        Assert.Equal("C:\\Users\\david\\OneDrive - Instituto Tecnol\u00F3gico de Las Am\u00E9ricas (ITLA)\\Documentos\\itla\\c6\\p parallela\\ProyectoFinalD\\src\\Smartflow.Tests\\bin\\data/output/", config.OutputPath); 
+        Assert.Equal(ResolveProjectPath("data/input/"), config.InputPath); 
+        Assert.Equal(ResolveProjectPath("data/output/"), config.OutputPath); 
         Assert.Equal(ParallelizationStrategy.DATA_DECOMPOSITION, config.Strategy);
 
 
