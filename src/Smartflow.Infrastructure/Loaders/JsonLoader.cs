@@ -12,13 +12,13 @@ namespace Smartflow.Infrastructure.Loaders
         {
             _options = new JsonSerializerOptions
             {
-                WriteIndented = true,                 
+                WriteIndented = true,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
             };
         }
 
-        public string SerializeData(ProcessedData data)
+        private string SerializeData(ProcessedData data)
         {
             if (data == null)
                 throw new ArgumentNullException(nameof(data));
@@ -26,18 +26,24 @@ namespace Smartflow.Infrastructure.Loaders
             return JsonSerializer.Serialize(data, _options);
         }
 
+        private void EnsureDirectory(string outputPath)
+        {
+            string? directory = Path.GetDirectoryName(outputPath);
+
+            if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        }
+
         public void Load(ProcessedData data, string outputPath)
         {
             if (string.IsNullOrWhiteSpace(outputPath))
                 throw new ArgumentException("Output path no puede ser vacío.", nameof(outputPath));
 
-            string json = SerializeData(data);
+            EnsureDirectory(outputPath);
 
-            string? directory = Path.GetDirectoryName(outputPath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory!);
-            }
+            string json = SerializeData(data);
 
             File.WriteAllText(outputPath, json);
 
@@ -52,13 +58,9 @@ namespace Smartflow.Infrastructure.Loaders
             if (string.IsNullOrWhiteSpace(outputPath))
                 throw new ArgumentException("Output path no puede ser vacío.", nameof(outputPath));
 
-            string json = JsonSerializer.Serialize(dataList, _options);
+            EnsureDirectory(outputPath);
 
-            string? directory = Path.GetDirectoryName(outputPath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory!);
-            }
+            string json = JsonSerializer.Serialize(dataList, _options);
 
             File.WriteAllText(outputPath, json);
 
