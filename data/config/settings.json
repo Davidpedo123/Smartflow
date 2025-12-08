@@ -1,0 +1,16 @@
+{
+  "MaxThreads": 8,
+  "BlockSize": 2000,
+  "InputPath": "data/input/",
+  "OutputPath": "data/output/",
+  "Strategy": "DATA_DECOMPOSITION",
+  "Thresholds": {
+    "Noise": 70,
+    "Traffic": 80,
+    "CO2": 400,
+    "Temperature": {
+      "Min": 15,
+      "Max": 35
+    }
+  }
+}
