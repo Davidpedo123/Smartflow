@@ -6,6 +6,9 @@
 # script 
 utils/__pycache__/
 
+# data
+data/
+
 # User-specific files
 *.rsuser
 *.suo
