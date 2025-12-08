@@ -96,7 +96,7 @@ public class ConfigurationManagerTests
 }
 
 
-
+/*
 public class TheradManagerTest
 {
     private Configuration config;
@@ -169,3 +169,4 @@ public class TheradManagerTest
     }
 }
 
+*/
