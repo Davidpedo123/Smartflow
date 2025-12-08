@@ -1,19 +1,25 @@
 import asyncio
-import aiofiles
-from multiprocessing import Process, Queue, cpu_count
-from faker import Faker
-import random
 import datetime
 import os
+import random
+from multiprocessing import Process, Queue, cpu_count
+
+import aiofiles
+from faker import Faker
 
 fake = Faker()
 SENSOR_TYPES = ["NOISE", "TEMPERATURE", "HUMIDITY", "POLLUTION", "TRAFFIC"]
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data", "input")
+os.makedirs(DATA_DIR, exist_ok=True)
+
 
 def generar_datos_worker(n, queue):
     """Genera n datos y los pone en la cola."""
     print(f"[WORKER PID {os.getpid()}] Iniciando worker para generar {n} datos")
 
-    datos = []  
+    datos = []
 
     for _ in range(n):
         dato = {
@@ -22,18 +28,18 @@ def generar_datos_worker(n, queue):
             "tipo": random.choice(SENSOR_TYPES),
             "value": round(random.uniform(-50, 1000), 2),
             "latitude": round(random.uniform(-18.40, -18.55), 6),
-            "longitude": round(random.uniform(69.95, -69.85), 6)
+            "longitude": round(random.uniform(69.95, -69.85), 6),
         }
         datos.append(dato)
 
-    queue.put(datos)  
-    queue.put("DONE")  
+    queue.put(datos)
+    queue.put("DONE")
+
 
 async def escritor_async(queue, total_workers):
     print("[WRITER] Iniciando escritor async...")
 
     terminados = 0
-    os.makedirs("data", exist_ok=True)
 
     while terminados < total_workers:
         datos = queue.get()
@@ -43,10 +49,11 @@ async def escritor_async(queue, total_workers):
             terminados += 1
             continue
 
-        
-        filename = f"data/climate_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.txt"
+        filename = os.path.join(
+            DATA_DIR,
+            f"climate_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.txt",
+        )
 
-        
         async with aiofiles.open(filename, "w") as f:
             for dato in datos:
                 contenido = (
@@ -61,11 +68,14 @@ async def escritor_async(queue, total_workers):
 
     print("[WRITER] Finalizado")
 
+
 async def pipeline(total):
-    workers = min(cpu_count(), total)   
+    workers = min(cpu_count(), total)
     datos_por_worker = max(1, total // workers)
 
-    print(f"[MAIN] total={total}, workers={workers}, datos_por_worker={datos_por_worker}")
+    print(
+        f"[MAIN] total={total}, workers={workers}, datos_por_worker={datos_por_worker}"
+    )
 
     queue = Queue()
 
@@ -84,6 +94,7 @@ async def pipeline(total):
 
     print(f"Generados y guardados: {total} archivos")
 
+
 if __name__ == "__main__":
     for i in range(30):
-        asyncio.run(pipeline(500)) 
+        asyncio.run(pipeline(500))
