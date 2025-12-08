@@ -37,6 +37,19 @@ public class RuleValidator
     return alerts;
   }
 
+  public List<Alert> ValidateData(List<SensorData> dataList)
+  {
+    var allAlerts = new List<Alert>();
+
+    foreach (var data in dataList)
+    {
+      allAlerts.AddRange(ValidateData(data));
+    }
+
+    return allAlerts;
+  }
+
+
   public Alert? ApplyRule(string ruleName, SensorData data)
   {
     if (_rules.TryGetValue(ruleName, out var rule))
