@@ -15,6 +15,8 @@ namespace Smartflow.Domain.Models
     public ThresholdInfo Threshold { get; set; } = new();
     public DateTime Timestamp { get; set; }
 
+    public string Message { get; set; } = string.Empty;
+
     //WARNING: member names can be the same as their enclosing   
     // public void Alert()
     // {
