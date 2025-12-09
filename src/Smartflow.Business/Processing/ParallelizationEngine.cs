@@ -6,20 +6,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Smartflow.Business.Processing.Interfaces;
 
-namespace Smartflow.Domain.Services
+namespace Smartflow.Business.Processing
 {
-    public class ParallelizationEngine
+    public class ParallelizationEngine : IParallelizationEngine
     {
         private readonly Configuration _config;
         private ParallelizationStrategy _strategy;
-        private readonly DataProcessor _processor;
+        private readonly IDataProcessor _processor;
 
-        public ParallelizationEngine(Configuration config)
+
+        public ParallelizationEngine(Configuration config, IDataProcessor processor)
         {
             _config = config;
             _strategy = config.Strategy;
-            _processor = new DataProcessor(config);
+            _processor = processor;
         }
 
         //Procesador de datos 
@@ -123,7 +125,7 @@ namespace Smartflow.Domain.Services
             };
         }
 
-        
+
         // Esto agrega los resultados
         public List<ProcessedData> AggregateResults(List<ProcessedData> results)
         {

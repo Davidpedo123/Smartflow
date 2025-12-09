@@ -3,10 +3,12 @@ using Smartflow.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Smartflow.Business.Processing.Interfaces;
 
-namespace Smartflow.Domain.Services
+
+namespace Smartflow.Business.Processing
 {
-    public class DataProcessor
+    public class DataProcessor : IDataProcessor
     {
         private readonly Configuration _config;
 
@@ -15,9 +17,10 @@ namespace Smartflow.Domain.Services
             _config = config;
         }
 
-        // ============================================================
-        // PROCESAR BLOQUE COMPLETO
-        // ============================================================
+
+
+        // Esto Procesa el bloque completo
+
         public List<SensorData> Process(List<SensorData> block)
         {
             List<SensorData> cleaned = Clean(block);
@@ -27,9 +30,9 @@ namespace Smartflow.Domain.Services
             return transformed;
         }
 
-        // ============================================================
-        // 1. LIMPIEZA DE DATOS
-        // ============================================================
+
+        // 1. Esta hace limpieza
+
         private List<SensorData> Clean(List<SensorData> block)
         {
             return block
@@ -38,9 +41,7 @@ namespace Smartflow.Domain.Services
                 .ToList();
         }
 
-        // ============================================================
-        // 2. VALIDACIÓN SEGÚN TU MÉTODO IsValid()
-        // ============================================================
+        // 2. Esto hace la validacion segun el metodo IsValid()
         private List<SensorData> Validate(List<SensorData> block)
         {
             return block
@@ -48,9 +49,9 @@ namespace Smartflow.Domain.Services
                 .ToList();
         }
 
-        // ============================================================
-        // 3. TRANSFORMACIONES Y REGLAS DE NEGOCIO
-        // ============================================================
+
+        // 3. Esto hace las transformaciones y las reglas de negocio
+
         private List<SensorData> Transform(List<SensorData> block)
         {
             List<SensorData> output = new();
@@ -59,7 +60,6 @@ namespace Smartflow.Domain.Services
             {
                 var clone = sensor.Clone();
 
-                // Ejemplo: normalización dependiendo del tipo
                 clone.Value = ApplyRules(clone);
 
                 output.Add(clone);
@@ -68,12 +68,13 @@ namespace Smartflow.Domain.Services
             return output;
         }
 
-        // ============================================================
-        // REGLAS SEGÚN THRESHOLDS
-        // ============================================================
+
+        // Esto aplica las reglas del thresholds
+
         private double ApplyRules(SensorData sensor)
         {
             double val = sensor.Value;
+
             switch (sensor.Type)
             {
                 case SensorType.NOISE:
@@ -100,20 +101,23 @@ namespace Smartflow.Domain.Services
                     break;
             }
 
-
-
             return val;
         }
 
-        // ============================================================
-        // UTILIDAD PARA LIMITES
-        // ============================================================
+
+
+        // Esta aplica los limites
+
         private double Limit(double value, double max)
         {
-            if (value > max)
-                return max;
-
-            return value;
+            return value > max ? max : value;
         }
     }
 }
+
+
+
+
+
+
+
