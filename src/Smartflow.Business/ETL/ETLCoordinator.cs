@@ -30,13 +30,10 @@ public class ETLCoordinator
   /// <summary>
   /// Procesa TODOS los archivos y mide el tiempo total del proceso ETL completo
   /// </summary>
-  public Metrics ProcessAllData(List<string> inputPaths)
+  public void ProcessAllData(List<string> inputPaths)
   {
     if (inputPaths == null || inputPaths.Count == 0)
       throw new ArgumentException("La lista de archivos no puede estar vacía.", nameof(inputPaths));
-
-    var metrics = new Metrics();
-    var stopwatch = Stopwatch.StartNew();
 
     int totalRecords = 0;
     int totalAlerts = 0;
@@ -60,23 +57,18 @@ public class ETLCoordinator
         totalZones += result.ZoneCount;
       }
 
-      stopwatch.Stop();
-      metrics.SequentialTime = stopwatch.Elapsed.TotalSeconds;
 
       Console.WriteLine("\n" + new string('=', 60));
       Console.WriteLine($"[ETL] ✓ Proceso ETL COMPLETO finalizado exitosamente");
-      Console.WriteLine($"[ETL] Tiempo TOTAL de ejecución: {metrics.SequentialTime:F3} segundos");
       Console.WriteLine($"[ETL] Archivos procesados: {inputPaths.Count}");
       Console.WriteLine($"[ETL] Registros totales: {totalRecords}");
       Console.WriteLine($"[ETL] Alertas totales: {totalAlerts}");
       Console.WriteLine($"[ETL] Zonas totales: {totalZones}");
       Console.WriteLine(new string('=', 60));
 
-      return metrics;
     }
     catch (Exception ex)
     {
-      stopwatch.Stop();
       Console.WriteLine($"\n[ETL] ERROR: {ex.Message}");
       Console.WriteLine($"[ETL] Traza de error: {ex.StackTrace}");
       throw new InvalidOperationException("El proceso ETL completo falló", ex);

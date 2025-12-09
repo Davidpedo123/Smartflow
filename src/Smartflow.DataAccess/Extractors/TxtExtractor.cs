@@ -27,7 +27,7 @@ public class TxtExtractor : IDataExtractor
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"[WARN] Linea invalida: {line}");
+        Console.WriteLine($"[WARN] Registro invalido: {line}");
         Console.WriteLine($"Motivo: {ex.Message}");
       }
     }
@@ -50,7 +50,7 @@ public class TxtExtractor : IDataExtractor
     var parts = line.Split(',');
 
     if (parts.Length != 6)
-      throw new FormatException("La line no tiene 6 columnas");
+      throw new FormatException("La linea no tiene 6 columnas");
 
     return new SensorData
     {
