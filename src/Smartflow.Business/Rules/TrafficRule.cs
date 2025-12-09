@@ -6,7 +6,6 @@ namespace Smartflow.Business.Rules;
 
 public class TrafficRule : IRule
 {
-
   private readonly int _threshold;
 
   public TrafficRule(int threshold)
@@ -23,8 +22,9 @@ public class TrafficRule : IRule
   {
     return new Alert
     {
+      SensorId = data.SensorId,
       Type = "TRAFFIC_HIGH",
-      Severity = AlertSeverity.WARNING,
+      Severity = DetermineSeverity(data.Value),
       Value = data.Value,
       Threshold = new ThresholdInfo
       {
@@ -32,5 +32,16 @@ public class TrafficRule : IRule
       },
       Timestamp = data.Timestamp
     };
+  }
+
+  private AlertSeverity DetermineSeverity(double value)
+  {
+    if (value > 160)
+      return AlertSeverity.CRITICAL;
+
+    if (value > 130)
+      return AlertSeverity.HIGH;
+
+    return AlertSeverity.WARNING;
   }
 }

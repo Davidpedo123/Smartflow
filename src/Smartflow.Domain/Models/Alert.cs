@@ -9,6 +9,7 @@ namespace Smartflow.Domain.Models
 {
   public class Alert
   {
+    public string SensorId { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public AlertSeverity Severity { get; set; } = AlertSeverity.INFO;
     public double Value { get; set; }
