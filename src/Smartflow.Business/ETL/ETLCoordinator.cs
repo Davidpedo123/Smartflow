@@ -27,60 +27,99 @@ public class ETLCoordinator
   }
 
 
-  public Metrics ProcessData(string inputPath)
+  /// <summary>
+  /// Procesa TODOS los archivos y mide el tiempo total del proceso ETL completo
+  /// </summary>
+  public Metrics ProcessAllData(List<string> inputPaths)
   {
-
-    if (string.IsNullOrWhiteSpace(inputPath))
-      throw new ArgumentException("El input path no puede ser nulo o vacio.", nameof(inputPath));
-
-    if (!File.Exists(inputPath))
-      throw new FileNotFoundException($"Input path no encontrado: {inputPath}");
+    if (inputPaths == null || inputPaths.Count == 0)
+      throw new ArgumentException("La lista de archivos no puede estar vacía.", nameof(inputPaths));
 
     var metrics = new Metrics();
     var stopwatch = Stopwatch.StartNew();
 
+    int totalRecords = 0;
+    int totalAlerts = 0;
+    int totalZones = 0;
+
     try
     {
-      Console.WriteLine("=== Iniciando Proceso ETL Secuencial ===\n");
-
-      Console.WriteLine($"[ETL] Iniciando Proceso ETL para: {inputPath}");
+      Console.WriteLine("=== Iniciando Proceso ETL Completo (Secuencial) ===");
+      Console.WriteLine($"[ETL] Archivos a procesar: {inputPaths.Count}");
       Console.WriteLine($"[ETL] Fecha y hora: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
       Console.WriteLine(new string('=', 60));
 
+      foreach (var inputPath in inputPaths)
+      {
+        Console.WriteLine($"\n[ETL] Procesando: {Path.GetFileName(inputPath)}");
+
+        var result = ProcessSingleFile(inputPath);
+
+        totalRecords += result.RecordCount;
+        totalAlerts += result.AlertCount;
+        totalZones += result.ZoneCount;
+      }
+
+      stopwatch.Stop();
+      metrics.SequentialTime = stopwatch.Elapsed.TotalSeconds;
+
+      Console.WriteLine("\n" + new string('=', 60));
+      Console.WriteLine($"[ETL] ✓ Proceso ETL COMPLETO finalizado exitosamente");
+      Console.WriteLine($"[ETL] Tiempo TOTAL de ejecución: {metrics.SequentialTime:F3} segundos");
+      Console.WriteLine($"[ETL] Archivos procesados: {inputPaths.Count}");
+      Console.WriteLine($"[ETL] Registros totales: {totalRecords}");
+      Console.WriteLine($"[ETL] Alertas totales: {totalAlerts}");
+      Console.WriteLine($"[ETL] Zonas totales: {totalZones}");
+      Console.WriteLine(new string('=', 60));
+
+      return metrics;
+    }
+    catch (Exception ex)
+    {
+      stopwatch.Stop();
+      Console.WriteLine($"\n[ETL] ERROR: {ex.Message}");
+      Console.WriteLine($"[ETL] Traza de error: {ex.StackTrace}");
+      throw new InvalidOperationException("El proceso ETL completo falló", ex);
+    }
+  }
+
+
+  /// <summary>
+  /// Procesa un único archivo (método auxiliar privado)
+  /// </summary>
+  private (int RecordCount, int AlertCount, int ZoneCount) ProcessSingleFile(string inputPath)
+  {
+    if (string.IsNullOrWhiteSpace(inputPath))
+      throw new ArgumentException("El input path no puede ser nulo o vacío.", nameof(inputPath));
+
+    if (!File.Exists(inputPath))
+      throw new FileNotFoundException($"Input path no encontrado: {inputPath}");
+
+    try
+    {
       // 1. EXTRACT
-      Console.WriteLine("[ETL] Fase 1: EXTRACCION");
       var rawData = ExtractData(inputPath);
-      Console.WriteLine($"[ETL] Extraidos {rawData.Count} registros");
+      Console.WriteLine($"[ETL]   Extraídos {rawData.Count} registros");
 
       if (rawData.Count == 0)
       {
-        Console.WriteLine("[ETL] No hay datos para procesar. Abortando.");
-        stopwatch.Stop();
-        metrics.SequentialTime = stopwatch.Elapsed.TotalSeconds;
-        return metrics;
+        Console.WriteLine("[ETL]   No hay datos para procesar.");
+        return (0, 0, 0);
       }
 
       // 2. TRANSFORM
-      Console.WriteLine("\n ETL Fase 2: TRANSFORMACION");
-
-      Console.WriteLine("[ETL] Paso 2.1: Limpiando dato...");
       var cleanedData = CleanData(rawData);
-      Console.WriteLine($"[ETL] Limpiados: {cleanedData.Count}/{rawData.Count} registros validos");
+      Console.WriteLine($"[ETL]   Limpiados: {cleanedData.Count}/{rawData.Count} registros válidos");
 
-      Console.WriteLine("[ETL] Paso 2.2: Validando reglas...");
       var allAlerts = _validator.ValidateData(cleanedData);
-      Console.WriteLine($"[ETL] Generadas {allAlerts.Count} alertas");
+      Console.WriteLine($"[ETL]   Generadas {allAlerts.Count} alertas");
 
-      Console.WriteLine("[ETL] Paso 2.3: Agrupando por zona...");
       var groupedByZone = GroupByZone(cleanedData);
-      Console.WriteLine($"[ETL] Creadas {groupedByZone.Count} zonas geograficas");
+      Console.WriteLine($"[ETL]   Creadas {groupedByZone.Count} zonas geográficas");
 
-      Console.WriteLine("[ETL] Paso 2.4: Calculando estadisticas...");
       var processedDataList = CalculateStatisticsForZones(groupedByZone, allAlerts);
-      Console.WriteLine($"[ETL] Estadisticas calculadas para todas las zonas");
 
       // 3. LOAD
-      Console.WriteLine("\n[ETL] Fase 3: CARGA");
       var outputPath = GenerateOutputPath(_config.OutputPath, inputPath);
 
       if (processedDataList.Count == 1)
@@ -92,29 +131,17 @@ public class ETLCoordinator
         _loader.LoadBatch(processedDataList, outputPath);
       }
 
-      Console.WriteLine($"[ETL] Data cargados en: {outputPath}");
+      Console.WriteLine($"[ETL]   Datos cargados en: {outputPath}");
 
-      stopwatch.Stop();
-      metrics.SequentialTime = stopwatch.Elapsed.TotalSeconds;
-
-      Console.WriteLine(new string('=', 60));
-      Console.WriteLine($"[ETL] Proceso completado exitosamente");
-      Console.WriteLine($"[ETL] Tiempo total de ejecucion: {metrics.SequentialTime:F3} segundos");
-      Console.WriteLine($"[ETL] Registros procesados: {cleanedData.Count}");
-      Console.WriteLine($"[ETL] Alertas generadas: {allAlerts.Count}");
-      Console.WriteLine($"[ETL] Zonas creadas: {processedDataList.Count}");
-
-      return metrics;
-
+      return (cleanedData.Count, allAlerts.Count, processedDataList.Count);
     }
     catch (Exception ex)
     {
-      stopwatch.Stop();
-      Console.WriteLine($"\n[ETL] ERROR: {ex.Message}");
-      Console.WriteLine($"[ETL] Traza de error: {ex.StackTrace}");
-      throw new InvalidOperationException("El proceso ETL fallo", ex);
+      Console.WriteLine($"\n[ETL] Error procesando {inputPath}: {ex.Message}");
+      throw;
     }
   }
+
 
   private List<SensorData> ExtractData(string inputPath)
   {
@@ -124,7 +151,7 @@ public class ETLCoordinator
     }
     catch (Exception ex)
     {
-      Console.WriteLine($"[ETL] Fallo en la extraccion: {ex.Message}");
+      Console.WriteLine($"[ETL] Fallo en la extracción: {ex.Message}");
       throw;
     }
   }
@@ -262,12 +289,15 @@ public class ETLCoordinator
     var zones = new Dictionary<string, List<SensorData>>();
 
     //(approx 0.01 grados ~ 1km)
-    const double GRID_SIZE = 0.01;
+    const double GRID_SIZE = 0.40;
 
     foreach (var sensor in data)
     {
-      int latGrid = (int)Math.Floor(sensor.Latitude / GRID_SIZE);
-      int lonGrid = (int)Math.Floor(sensor.Longitude / GRID_SIZE);
+      double roundedLat = Math.Round(sensor.Latitude, 2);
+      double roundedLon = Math.Round(sensor.Longitude, 2);
+
+      int latGrid = (int)Math.Floor(roundedLat / GRID_SIZE);
+      int lonGrid = (int)Math.Floor(roundedLon / GRID_SIZE);
 
       string zoneKey = $"Zone_{latGrid}_{lonGrid}";
 
