@@ -4,6 +4,7 @@ namespace Smartflow.Domain.Enums
   {
     INFO,
     WARNING,
+    HIGH,
     CRITICAL
   }
 }

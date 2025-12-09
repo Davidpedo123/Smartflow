@@ -17,15 +17,19 @@ public class TemperatureRule : IRule
 
   public bool Evaluate(SensorData data)
   {
-    return data.Type == SensorType.TEMPERATURE && (data.Value < _min || data.Value > _max);
+    return data.Type == SensorType.TEMPERATURE &&
+           (data.Value < _min || data.Value > _max);
   }
 
   public Alert GenerateAlert(SensorData data)
   {
+    bool isTooLow = data.Value < _min;
+
     return new Alert
     {
-      Type = "TEMP_OUT_OF_RANGE",
-      Severity = AlertSeverity.WARNING,
+      SensorId = data.SensorId,
+      Type = isTooLow ? "TEMP_TOO_LOW" : "TEMP_TOO_HIGH",
+      Severity = DetermineSeverity(data.Value),
       Value = data.Value,
       Threshold = new ThresholdInfo
       {
@@ -35,5 +39,15 @@ public class TemperatureRule : IRule
       Timestamp = data.Timestamp
     };
   }
-}
 
+  private AlertSeverity DetermineSeverity(double value)
+  {
+    if (value < 0 || value > 42)
+      return AlertSeverity.CRITICAL;
+
+    if (value < 5 || value > 40)
+      return AlertSeverity.HIGH;
+
+    return AlertSeverity.WARNING;
+  }
+}
