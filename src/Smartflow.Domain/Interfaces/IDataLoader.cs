@@ -1,5 +1,3 @@
-using Smartflow.Domain.Models;
-
 namespace Smartflow.Domain.Interfaces
 {
   public interface IDataLoader
