@@ -1,57 +1,65 @@
 using Smartflow.Domain.Enums;
 using Smartflow.Domain.Interfaces;
 using Smartflow.Domain.Models;
-
 namespace Smartflow.DataAccess.Extractors;
 
 public class TxtExtractor : IDataExtractor
 {
-  // Mantén tu método Extract original si quieres, pero agrega este:
-  public IEnumerable<SensorData> ExtractStream(string filePath)
+
+  public List<SensorData> Extract(string filePath)
   {
-    if (!File.Exists(filePath)) yield break;
+    var result = new List<SensorData>();
 
-    // StreamReader lee el disco poco a poco, no carga todo en RAM
-    using var reader = new StreamReader(filePath);
-    while (!reader.EndOfStream)
+    if (!File.Exists(filePath))
+      throw new FileNotFoundException($"El archivo no existe: {filePath}");
+
+    var lines = File.ReadAllLines(filePath);
+
+    foreach (var line in lines)
     {
-      var line = reader.ReadLine();
-      if (string.IsNullOrWhiteSpace(line)) continue;
+      if (string.IsNullOrWhiteSpace(line))
+        continue;
 
-      SensorData? data = null;
-      try 
+      try
       {
-        // Reutilizamos tu lógica de parseo existente
-        data = ParseLine(line); 
+        var data = ParseLine(line);
+        result.Add(data);
       }
-      catch 
-      { 
-        // Log simple para no romper el flujo
-        continue; 
+      catch (Exception ex)
+      {
+        // Console.WriteLine($"[WARN] Registro invalido: {line}");
+        // Console.WriteLine($"Motivo: {ex.Message}");
       }
-
-      if (data != null)
-        yield return data; // <--- ¡AQUÍ ESTÁ EL TRUCO! Entrega el dato y sigue
     }
+
+    return result;
   }
 
-  // ... (Mantén tu método ParseLine privado igual que antes) ...
-  public List<SensorData> Extract(string filePath) => ExtractStream(filePath).ToList();
-  public List<SensorData> ExtractBatch(List<string> filePaths) => throw new NotImplementedException(); 
-  
+  public List<SensorData> ExtractBatch(List<string> filePaths)
+  {
+    var allSensors = new List<SensorData>();
+    foreach (var path in filePaths)
+    {
+      allSensors.AddRange(Extract(path));
+    }
+    return allSensors;
+  }
+
   private SensorData ParseLine(string line)
   {
-      var parts = line.Split(',');
-      if (parts.Length != 6) throw new FormatException("Formato incorrecto");
+    var parts = line.Split(',');
 
-      return new SensorData
-      {
-          Timestamp = DateTime.Parse(parts[0]),
-          SensorId = parts[1],
-          Type = Enum.Parse<SensorType>(parts[2], ignoreCase: true),
-          Value = double.Parse(parts[3]),
-          Latitude = double.Parse(parts[4]),
-          Longitude = double.Parse(parts[5])
-      };
+    if (parts.Length != 6)
+      throw new FormatException("");
+
+    return new SensorData
+    {
+      Timestamp = DateTime.Parse(parts[0]),
+      SensorId = parts[1],
+      Type = Enum.Parse<SensorType>(parts[2], ignoreCase: true),
+      Value = double.Parse(parts[3]),
+      Latitude = double.Parse(parts[4]),
+      Longitude = double.Parse(parts[5])
+    };
   }
 }

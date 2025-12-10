@@ -38,7 +38,7 @@ public class ParallelizationEngine
     {
       ParallelizationStrategy.DATA_DECOMPOSITION => ProcessWithDataDescomposition(data),
       // ParallelizationStrategy.TASK_PARALLELISM => ProcessWithTaskParallelism(data),
-      _ => throw new InvalidOperationException($"Estrategia no soportada: {_config.Strategy}");
+      _ => throw new InvalidOperationException($"Estrategia no soportada: {_config.Strategy}")
     };
 
     Console.WriteLine("[PARALLEL] Procesamiento completado");
