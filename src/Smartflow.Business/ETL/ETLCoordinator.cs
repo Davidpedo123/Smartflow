@@ -4,6 +4,7 @@ using Smartflow.Business.Validation;
 using Smartflow.Infrastructure.Config;
 using System.Diagnostics;
 using Smartflow.Domain.Enums;
+using Smartflow.Business.Parallelization;
 namespace Smartflow.Business.ETL;
 
 
@@ -13,6 +14,7 @@ public class ETLCoordinator
   private readonly IDataLoader _loader;
   private readonly RuleValidator _validator;
   private readonly Configuration _config;
+  private ParallelizationEngine? _parallelEngine;
 
   public ETLCoordinator(
       IDataExtractor extractor,
@@ -72,6 +74,76 @@ public class ETLCoordinator
       Console.WriteLine($"\n[ETL] ERROR: {ex.Message}");
       Console.WriteLine($"[ETL] Traza de error: {ex.StackTrace}");
       throw new InvalidOperationException("El proceso ETL completo falló", ex);
+    }
+  }
+
+  public void ProcessAllDataParallel(List<string> inputPaths)
+  {
+    if (inputPaths == null || inputPaths.Count == 0)
+      throw new ArgumentException("La lista de archivos no puede estar vacia.", nameof(inputPaths));
+
+    try
+    {
+      Console.WriteLine("=== Iniciando Proceso ETL (Paralelo) ===");
+      Console.WriteLine($"[ETL] Archivos a procesor: {inputPaths.Count}");
+      Console.WriteLine($"[ETL] Estrategia: {_config.Strategy}");
+      Console.WriteLine($"[ETL] Max Threads: {_config.MaxThreads}");
+      Console.WriteLine($"[ETL] Fecha y hora: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+      Console.WriteLine(new string('=', 60));
+
+      // 1. EXTRACT 
+      Console.WriteLine("\n[ETL] FASE 1: EXTRACCION");
+      var allData = new List<SensorData>();
+
+      foreach (var inputPath in inputPaths)
+      {
+        Console.WriteLine($"[ETL] Extrayendo: {Path.GetFileName(inputPath)}");
+        var fileData = _extractor.Extract(inputPath);
+        allData.AddRange(fileData);
+      }
+
+      Console.WriteLine($"[ETL] Total registros extraidos: {allData.Count}");
+      if (allData.Count == 0)
+      {
+        Console.WriteLine("[ETL] No hay datos para procesar.");
+        return;
+      }
+
+
+      Console.WriteLine("\n[ETL] FASE 2: TRANSFORMACION PARALELA");
+
+      _parallelEngine = new ParallelizationEngine(_config, _validator);
+
+      var processedDataList = _parallelEngine.ProcessedInParallel(allData);
+
+      Console.WriteLine($"[ETL] Zonas procesadas: {processedDataList.Count}");
+      Console.WriteLine($"[ETl] Alertas totales: {processedDataList.Sum(p => p.Alerts.Count)}");
+
+      Console.WriteLine("\n[ETL] FASE 3: CARGA");
+      var outputPath = GenerateOutputPath(_config.OutputPath, "parallel_result");
+
+      if (processedDataList.Count == 1)
+      {
+        _loader.Load(processedDataList[0], outputPath);
+      }
+      else
+      {
+        _loader.LoadBatch(processedDataList, outputPath);
+      }
+
+      Console.WriteLine($"[ETL] Datos cargados en: {outputPath}");
+
+      Console.WriteLine("[ETL] Proceso paralelo completado");
+      Console.WriteLine($"[ETL] Archivos procesados: {inputPaths.Count}");
+      Console.WriteLine($"[ETL] Registros procesados: {allData.Count}");
+      Console.WriteLine($"[ETL] Zonas generadas: {processedDataList.Count}");
+      Console.WriteLine(new string('=', 60));
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"\n[ETL] Error en proceso paralelo: {ex.Message}");
+      Console.WriteLine($"[ETL] Traza: {ex.StackTrace}");
+      throw;
     }
   }
 
