@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Smartflow.Business.Validation;
 using Smartflow.Domain.Models;
 using Smartflow.Domain.Enums;
@@ -7,37 +8,28 @@ namespace Smartflow.Business.Parallelization;
 public class ParallelizationEngine
 {
   private readonly Configuration _config;
-  private readonly List<Task> _activeTasks;
   private readonly RuleValidator _validator;
-
-  private readonly object _lockClean = new object();
-  private readonly object _lockAlerts = new object();
-  private readonly object _lockZones = new object();
-  private readonly object _lockResults = new object();
 
   public ParallelizationEngine(Configuration config, RuleValidator validator)
   {
     _config = config ?? throw new ArgumentNullException(nameof(config));
     _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-    _activeTasks = new List<Task>();
   }
 
-  public List<ProcessedData> ProcessedInParallel(List<SensorData> data)
+  public List<ProcessedData> ProcessInParallel(List<SensorData> data)
   {
     if (data == null || data.Count == 0)
-      throw new ArgumentException("La lista de datos puede estar vacia.", nameof(data));
+      throw new ArgumentException("La lista de datos no puede estar vacía.", nameof(data));
 
     Console.WriteLine($"\n[PARALLEL] Estrategia: {_config.Strategy}");
     Console.WriteLine($"[PARALLEL] Threads: {_config.MaxThreads}");
     Console.WriteLine($"[PARALLEL] Registros: {data.Count}");
+    Console.WriteLine($"[PARALLEL] BlockSize: {_config.BlockSize}");
     Console.WriteLine(new string('=', 60));
-
-    _activeTasks.Clear();
 
     List<ProcessedData> results = _config.Strategy switch
     {
-      ParallelizationStrategy.DATA_DECOMPOSITION => ProcessWithDataDescomposition(data),
-      // ParallelizationStrategy.TASK_PARALLELISM => ProcessWithTaskParallelism(data),
+      ParallelizationStrategy.DATA_DECOMPOSITION => ProcessWithDataDecomposition(data),
       _ => throw new InvalidOperationException($"Estrategia no soportada: {_config.Strategy}")
     };
 
@@ -48,169 +40,137 @@ public class ParallelizationEngine
     return results;
   }
 
-  public void ConfigureStategy(ParallelizationStrategy strategy)
+  public void ConfigureStrategy(ParallelizationStrategy strategy)
   {
     if (!Enum.IsDefined(typeof(ParallelizationStrategy), strategy))
-      throw new ArgumentException("Estrategia invalida", nameof(strategy));
+      throw new ArgumentException("Estrategia inválida", nameof(strategy));
 
     _config.Strategy = strategy;
     Console.WriteLine($"[PARALLEL] Estrategia cambiada a: {strategy}");
   }
 
-  private List<List<SensorData>> PartitionData(List<SensorData> data)
+  private List<ProcessedData> ProcessWithDataDecomposition(List<SensorData> data)
   {
-    if (data == null || data.Count == 0)
-      return new List<List<SensorData>>();
+    Console.WriteLine("[PARALLEL] DESCOMPOSICIÓN DE DATOS");
 
-    var partitions = new List<List<SensorData>>();
-    int blockSize = _config.BlockSize;
-
-    if (blockSize <= 0 || blockSize >= data.Count)
-    {
-      partitions.Add(data);
-      return partitions;
-    }
-
-    for (int i = 0; i < data.Count; i += blockSize)
-    {
-      int remaining = Math.Min(blockSize, data.Count - i);
-      var partition = data.GetRange(i, remaining);
-      partitions.Add(partition);
-    }
-
-    Console.WriteLine($"[PARALLEL] Datos particiones en {partitions.Count} bloques");
-    return partitions;
-  }
-
-
-  private List<ProcessedData> ProcessWithDataDescomposition(List<SensorData> data)
-  {
-    Console.WriteLine("[PARALLEL] DATA DESCOMPOSITION");
-
+    // FASE 1: LIMPIEZA PARALELA CON COLECCIONES CONCURRENTES
     var cleanedData = CleanDataParallel(data);
-    Console.WriteLine($"[PARALLEL] Limpiados: {cleanedData.Count}");
+    Console.WriteLine($"[PARALLEL] Limpiados: {cleanedData.Count}/{data.Count}");
 
-    var allAlerts = ValidateDataParallel(cleanedData);
-    Console.WriteLine($"[PARALLEL] Alertas: {allAlerts.Count}");
+    if (cleanedData.Count == 0)
+    {
+      Console.WriteLine("[PARALLEL] No hay datos válidos para procesar");
+      return new List<ProcessedData>();
+    }
 
+    // FASE 2: AGRUPAR POR ZONA (PRIMERO) - ESTO REDUCE LA CONTENCIÓN
     var groupedByZone = GroupByZoneParallel(cleanedData);
-    Console.WriteLine($"[PARALLEL] Zonas: {groupedByZone.Count}");
+    Console.WriteLine($"[PARALLEL] Zonas identificadas: {groupedByZone.Count}");
 
-    var results = CalculateStatisticsParallel(groupedByZone, allAlerts);
+    // FASE 3: VALIDAR Y CALCULAR ESTADÍSTICAS POR ZONA EN PARALELO
+    var results = ProcessZonesParallel(groupedByZone);
 
     return results;
   }
 
   private List<SensorData> CleanDataParallel(List<SensorData> data)
   {
-    var cleaned = new List<SensorData>();
-    var seenIds = new HashSet<string>();
+    // Usar ConcurrentBag para evitar locks en agregación
+    var cleanedBag = new ConcurrentBag<SensorData>();
+    var seenIds = new ConcurrentDictionary<string, byte>();
 
-    Parallel.ForEach(data,
+    // Particionar datos para reducir overhead
+    var partitioner = Partitioner.Create(0, data.Count, _config.BlockSize);
+
+    Parallel.ForEach(partitioner,
         new ParallelOptions { MaxDegreeOfParallelism = _config.MaxThreads },
-        sensor =>
+        range =>
         {
-          if (sensor == null || !sensor.IsValid())
-            return;
-
-          sensor.SensorId = sensor.SensorId?.Trim() ?? string.Empty;
-          string uniqueKey = $"{sensor.SensorId}_{sensor.Timestamp:yyyyMMddHHmmss}";
-
-          lock (_lockClean)
+          for (int i = range.Item1; i < range.Item2; i++)
           {
-            if (!seenIds.Contains(uniqueKey))
+            var sensor = data[i];
+
+            if (sensor == null || !sensor.IsValid())
+              continue;
+
+            sensor.SensorId = sensor.SensorId?.Trim() ?? string.Empty;
+            string uniqueKey = $"{sensor.SensorId}_{sensor.Timestamp:yyyyMMddHHmmss}";
+
+            // TryAdd es atómico - no necesita lock
+            if (seenIds.TryAdd(uniqueKey, 0))
             {
               sensor.Value = NormalizeValue(sensor.Value);
-              seenIds.Add(uniqueKey);
-              cleaned.Add(sensor);
+              cleanedBag.Add(sensor);
             }
           }
         });
 
-    return cleaned;
+    return cleanedBag.ToList();
   }
 
-  private List<Alert> ValidateDataParallel(List<SensorData> dataList)
-  {
-    var allAlerts = new List<Alert>();
-
-    Parallel.ForEach(dataList,
-        new ParallelOptions { MaxDegreeOfParallelism = _config.MaxThreads },
-        sensorData =>
-        {
-          var alerts = _validator.ValidateData(sensorData);
-
-          if (alerts.Count > 0)
-          {
-            lock (_lockAlerts)
-            {
-              allAlerts.AddRange(alerts);
-            }
-          }
-        });
-
-    return allAlerts;
-  }
-
-  private Dictionary<string, List<SensorData>> GroupByZoneParallel(List<SensorData> data)
+  private ConcurrentDictionary<string, ConcurrentBag<SensorData>> GroupByZoneParallel(List<SensorData> data)
   {
     const double GRID_SIZE = 0.40;
 
-    var zones = new Dictionary<string, List<SensorData>>();
+    var zones = new ConcurrentDictionary<string, ConcurrentBag<SensorData>>();
 
-    Parallel.ForEach(data,
+    // Particionar para mejor rendimiento
+    var partitioner = Partitioner.Create(0, data.Count, _config.BlockSize);
+
+    Parallel.ForEach(partitioner,
         new ParallelOptions { MaxDegreeOfParallelism = _config.MaxThreads },
-        sensor =>
+        range =>
         {
-          double roundedLat = Math.Round(sensor.Latitude, 2);
-          double roundedLon = Math.Round(sensor.Longitude, 2);
-
-          int latGrid = (int)Math.Floor(roundedLat / GRID_SIZE);
-          int lonGrid = (int)Math.Floor(roundedLon / GRID_SIZE);
-
-          string zoneKey = $"Zone_{latGrid}_{lonGrid}";
-
-          lock (_lockZones)
+          for (int i = range.Item1; i < range.Item2; i++)
           {
-            if (!zones.ContainsKey(zoneKey))
-            {
-              zones[zoneKey] = new List<SensorData>();
-            }
+            var sensor = data[i];
 
-            zones[zoneKey].Add(sensor);
+            double roundedLat = Math.Round(sensor.Latitude, 2);
+            double roundedLon = Math.Round(sensor.Longitude, 2);
+
+            int latGrid = (int)Math.Floor(roundedLat / GRID_SIZE);
+            int lonGrid = (int)Math.Floor(roundedLon / GRID_SIZE);
+
+            string zoneKey = $"Zone_{latGrid}_{lonGrid}";
+
+            // GetOrAdd es thread-safe
+            var zoneBag = zones.GetOrAdd(zoneKey, _ => new ConcurrentBag<SensorData>());
+            zoneBag.Add(sensor);
           }
         });
 
     return zones;
   }
 
-  private List<ProcessedData> CalculateStatisticsParallel(
-      Dictionary<string, List<SensorData>> groupByZone,
-      List<Alert> allAlerts
-      )
+  private List<ProcessedData> ProcessZonesParallel(
+      ConcurrentDictionary<string, ConcurrentBag<SensorData>> groupedByZone)
   {
-    var results = new List<ProcessedData>();
+    var resultsBag = new ConcurrentBag<ProcessedData>();
 
-    Parallel.ForEach(groupByZone,
+    // Procesar cada zona en paralelo
+    Parallel.ForEach(groupedByZone,
         new ParallelOptions { MaxDegreeOfParallelism = _config.MaxThreads },
         kvp =>
         {
           string zoneName = kvp.Key;
-          var zoneData = kvp.Value;
+          var zoneData = kvp.Value.ToList();
 
-          var processedData = CalculateStatistics(zoneData, zoneName);
-
-          var zoneSensorIds = new HashSet<string>(zoneData.Select(s => s.SensorId));
-          processedData.Alerts = allAlerts.Where(a => zoneSensorIds.Contains(a.SensorId)).ToList();
-
-          lock (_lockResults)
+          // Validar datos de la zona
+          var alerts = new List<Alert>();
+          foreach (var sensor in zoneData)
           {
-            results.Add(processedData);
+            var sensorAlerts = _validator.ValidateData(sensor);
+            alerts.AddRange(sensorAlerts);
           }
 
+          // Calcular estadísticas
+          var processedData = CalculateStatistics(zoneData, zoneName);
+          processedData.Alerts = alerts;
+
+          resultsBag.Add(processedData);
         });
 
-    return results;
+    return resultsBag.ToList();
   }
 
   private double NormalizeValue(double value)
@@ -242,7 +202,8 @@ public class ParallelizationEngine
     double max = values.Max();
     double min = values.Min();
 
-    var statistics = new Dictionary<string, double>{
+    var statistics = new Dictionary<string, double>
+    {
       {"avg", Math.Round(avg, 2)},
       {"max", Math.Round(max, 2)},
       {"min", Math.Round(min, 2)},
@@ -266,10 +227,7 @@ public class ParallelizationEngine
       ProcessedAt = DateTime.Now,
       Statistics = statistics,
       RecordCount = data.Count,
-      Alerts = new List<Alert>() // will be populated later
+      Alerts = new List<Alert>()
     };
   }
-
 }
-
-

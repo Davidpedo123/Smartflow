@@ -80,19 +80,19 @@ public class ETLCoordinator
   public void ProcessAllDataParallel(List<string> inputPaths)
   {
     if (inputPaths == null || inputPaths.Count == 0)
-      throw new ArgumentException("La lista de archivos no puede estar vacia.", nameof(inputPaths));
+      throw new ArgumentException("La lista de archivos no puede estar vacía.", nameof(inputPaths));
 
     try
     {
       Console.WriteLine("=== Iniciando Proceso ETL (Paralelo) ===");
-      Console.WriteLine($"[ETL] Archivos a procesor: {inputPaths.Count}");
+      Console.WriteLine($"[ETL] Archivos a procesar: {inputPaths.Count}");
       Console.WriteLine($"[ETL] Estrategia: {_config.Strategy}");
       Console.WriteLine($"[ETL] Max Threads: {_config.MaxThreads}");
       Console.WriteLine($"[ETL] Fecha y hora: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
       Console.WriteLine(new string('=', 60));
 
       // 1. EXTRACT 
-      Console.WriteLine("\n[ETL] FASE 1: EXTRACCION");
+      Console.WriteLine("\n[ETL] FASE 1: EXTRACCIÓN");
       var allData = new List<SensorData>();
 
       foreach (var inputPath in inputPaths)
@@ -102,7 +102,7 @@ public class ETLCoordinator
         allData.AddRange(fileData);
       }
 
-      Console.WriteLine($"[ETL] Total registros extraidos: {allData.Count}");
+      Console.WriteLine($"[ETL] Total registros extraídos: {allData.Count}");
       if (allData.Count == 0)
       {
         Console.WriteLine("[ETL] No hay datos para procesar.");
@@ -110,14 +110,15 @@ public class ETLCoordinator
       }
 
 
-      Console.WriteLine("\n[ETL] FASE 2: TRANSFORMACION PARALELA");
+      Console.WriteLine("\n[ETL] FASE 2: TRANSFORMACIÓN PARALELA");
 
       _parallelEngine = new ParallelizationEngine(_config, _validator);
 
-      var processedDataList = _parallelEngine.ProcessedInParallel(allData);
+      // FIX: Corregir nombre del método
+      var processedDataList = _parallelEngine.ProcessInParallel(allData);
 
       Console.WriteLine($"[ETL] Zonas procesadas: {processedDataList.Count}");
-      Console.WriteLine($"[ETl] Alertas totales: {processedDataList.Sum(p => p.Alerts.Count)}");
+      Console.WriteLine($"[ETL] Alertas totales: {processedDataList.Sum(p => p.Alerts.Count)}");
 
       Console.WriteLine("\n[ETL] FASE 3: CARGA");
       var outputPath = GenerateOutputPath(_config.OutputPath, "parallel_result");
@@ -133,7 +134,7 @@ public class ETLCoordinator
 
       Console.WriteLine($"[ETL] Datos cargados en: {outputPath}");
 
-      Console.WriteLine("[ETL] Proceso paralelo completado");
+      Console.WriteLine("\n[ETL] ✓ Proceso paralelo completado");
       Console.WriteLine($"[ETL] Archivos procesados: {inputPaths.Count}");
       Console.WriteLine($"[ETL] Registros procesados: {allData.Count}");
       Console.WriteLine($"[ETL] Zonas generadas: {processedDataList.Count}");
