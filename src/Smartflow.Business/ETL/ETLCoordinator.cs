@@ -5,8 +5,8 @@ using Smartflow.Infrastructure.Config;
 using System.Diagnostics;
 using Smartflow.Domain.Enums;
 using Smartflow.Business.Parallelization;
-namespace Smartflow.Business.ETL;
 
+namespace Smartflow.Business.ETL;
 
 public class ETLCoordinator
 {
@@ -28,9 +28,8 @@ public class ETLCoordinator
     _config = config ?? throw new ArgumentNullException(nameof(config));
   }
 
-
   /// <summary>
-  /// Procesa TODOS los archivos y mide el tiempo total del proceso ETL completo
+  /// Procesa TODOS los archivos y mide el tiempo total del proceso ETL completo (Secuencial)
   /// </summary>
   public void ProcessAllData(List<string> inputPaths)
   {
@@ -59,7 +58,6 @@ public class ETLCoordinator
         totalZones += result.ZoneCount;
       }
 
-
       Console.WriteLine("\n" + new string('=', 60));
       Console.WriteLine($"[ETL] ✓ Proceso ETL COMPLETO finalizado exitosamente");
       Console.WriteLine($"[ETL] Archivos procesados: {inputPaths.Count}");
@@ -77,6 +75,10 @@ public class ETLCoordinator
     }
   }
 
+  /// <summary>
+  /// Procesa los datos en paralelo.
+  /// OPTIMIZACIÓN: Se paralelizó la extracción (lectura de archivos) para evitar cuellos de botella I/O.
+  /// </summary>
   public void ProcessAllDataParallel(List<string> inputPaths)
   {
     if (inputPaths == null || inputPaths.Count == 0)
@@ -91,16 +93,22 @@ public class ETLCoordinator
       Console.WriteLine($"[ETL] Fecha y hora: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
       Console.WriteLine(new string('=', 60));
 
-      // 1. EXTRACT 
-      Console.WriteLine("\n[ETL] FASE 1: EXTRACCIÓN");
-      var allData = new List<SensorData>();
+      // ---------------------------------------------------------
+      // FASE 1: EXTRACCIÓN PARALELA (OPTIMIZACIÓN CLAVE)
+      // ---------------------------------------------------------
+      Console.WriteLine("\n[ETL] FASE 1: EXTRACCIÓN PARALELA");
 
-      foreach (var inputPath in inputPaths)
-      {
-        Console.WriteLine($"[ETL] Extrayendo: {Path.GetFileName(inputPath)}");
-        var fileData = _extractor.Extract(inputPath);
-        allData.AddRange(fileData);
-      }
+      // Usamos PLINQ para paralelizar la lectura de archivos.
+      // Esto permite que mientras un hilo espera el disco, otro procese.
+      var allData = inputPaths
+          .AsParallel()
+          .WithDegreeOfParallelism(_config.MaxThreads)
+          .SelectMany(inputPath =>
+          {
+            // Nota: Se minimizan los logs aquí para no bloquear la consola
+            return _extractor.Extract(inputPath);
+          })
+          .ToList();
 
       Console.WriteLine($"[ETL] Total registros extraídos: {allData.Count}");
       if (allData.Count == 0)
@@ -109,17 +117,21 @@ public class ETLCoordinator
         return;
       }
 
-
+      // ---------------------------------------------------------
+      // FASE 2: TRANSFORMACIÓN PARALELA
+      // ---------------------------------------------------------
       Console.WriteLine("\n[ETL] FASE 2: TRANSFORMACIÓN PARALELA");
 
       _parallelEngine = new ParallelizationEngine(_config, _validator);
 
-      // FIX: Corregir nombre del método
       var processedDataList = _parallelEngine.ProcessInParallel(allData);
 
       Console.WriteLine($"[ETL] Zonas procesadas: {processedDataList.Count}");
       Console.WriteLine($"[ETL] Alertas totales: {processedDataList.Sum(p => p.Alerts.Count)}");
 
+      // ---------------------------------------------------------
+      // FASE 3: CARGA
+      // ---------------------------------------------------------
       Console.WriteLine("\n[ETL] FASE 3: CARGA");
       var outputPath = GenerateOutputPath(_config.OutputPath, "parallel_result");
 
@@ -148,9 +160,8 @@ public class ETLCoordinator
     }
   }
 
-
   /// <summary>
-  /// Procesa un único archivo (método auxiliar privado)
+  /// Procesa un único archivo (método auxiliar privado para modo secuencial)
   /// </summary>
   private (int RecordCount, int AlertCount, int ZoneCount) ProcessSingleFile(string inputPath)
   {
@@ -207,7 +218,6 @@ public class ETLCoordinator
     }
   }
 
-
   private List<SensorData> ExtractData(string inputPath)
   {
     try
@@ -221,7 +231,7 @@ public class ETLCoordinator
     }
   }
 
-  // Limpiar datos
+  // Limpiar datos (Versión Secuencial)
   private List<SensorData> CleanData(List<SensorData> data)
   {
     if (data == null || data.Count == 0)
@@ -265,7 +275,6 @@ public class ETLCoordinator
 
     return cleaned;
   }
-
 
   private double NormalizeValue(double value)
   {
@@ -342,7 +351,7 @@ public class ETLCoordinator
       ProcessedAt = DateTime.Now,
       Statistics = statistics,
       RecordCount = data.Count,
-      Alerts = new List<Alert>() // will be populated later
+      Alerts = new List<Alert>()
     };
   }
 
@@ -352,8 +361,6 @@ public class ETLCoordinator
       return new Dictionary<string, List<SensorData>>();
 
     var zones = new Dictionary<string, List<SensorData>>();
-
-    //(approx 0.01 grados ~ 1km)
     const double GRID_SIZE = 0.40;
 
     foreach (var sensor in data)
