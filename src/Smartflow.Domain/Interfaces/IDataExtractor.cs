@@ -7,5 +7,6 @@ namespace Smartflow.Domain.Interfaces
     List<SensorData> Extract(string filePath);
     List<SensorData> ExtractBatch(List<string> filePaths);
     // Task<List<SensorData>> ExtractAsync(string path);
+    IEnumerable<SensorData> ExtractStream(string filePath);
   }
 }
