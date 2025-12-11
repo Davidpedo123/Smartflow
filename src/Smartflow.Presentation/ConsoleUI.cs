@@ -20,8 +20,7 @@ namespace Smartflow.Presentation.ConsoleUI
       Console.WriteLine("1. Procesar datos (Secuencial)");
       Console.WriteLine("2. Procesar datos (Paralelo)");
       Console.WriteLine("3. Comparar rendimiento");
-      Console.WriteLine("4. Ver métricas");
-      Console.WriteLine("5. Salir\n");
+      Console.WriteLine("4. Salir\n");
       Console.Write("Seleccione una opción: ");
     }
 
@@ -79,36 +78,8 @@ namespace Smartflow.Presentation.ConsoleUI
       Console.ReadKey();
     }
 
-    public void DisplayMetrics(Metrics metrics)
-    {
-      Console.Clear();
-      Console.ForegroundColor = ConsoleColor.Blue;
-      Console.WriteLine("====== MÉTRICAS DE RENDIMIENTO ======");
-      Console.ResetColor();
 
-      Console.WriteLine($"Tiempo Secuencial: {metrics.SequentialTime} ms");
-      Console.WriteLine($"Tiempo Paralelo:   {metrics.ParallelTime} ms");
-      Console.WriteLine($"Speedup:           {metrics.Speedup:F2}x");
-      Console.WriteLine($"Eficiencia:        {metrics.Efficiency:P2}");
-
-      Console.WriteLine("\nPresione cualquier tecla para continuar...");
-      Console.ReadKey();
-    }
-
-    public void ShowProgressBar(int current, int total)
-    {
-      double progress = (double)current / total;
-      int filled = (int)(progress * _progressBarWidth);
-
-      Console.CursorLeft = 0;
-      Console.Write("[");
-      Console.ForegroundColor = ConsoleColor.Green;
-      Console.Write(new string('#', filled));
-      Console.ResetColor();
-      Console.Write(new string('-', _progressBarWidth - filled));
-      Console.Write("] ");
-
-      Console.Write($"{(progress * 100):F0}%");
-    }
+    // -- Eliminado por Cristhopher Guerrero --  
+    // -- Utilidades innecesarias --
   }
 }
