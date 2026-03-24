@@ -15,5 +15,4 @@
 ### Angery Joely Payamps Rosario 2024-0215 
 ### Josué Ricardo Hernández Montero 2024-0235 
 ### Eduardo David Tejada Moreta 2024-0276 
-### Cristopher Manuel Guerrero Tapia 2024-2052 
 ### Angel Ulloa Tejeda Suazo 2024-0222
